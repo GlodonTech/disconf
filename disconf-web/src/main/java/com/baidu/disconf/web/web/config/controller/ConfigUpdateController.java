@@ -1,7 +1,9 @@
 package com.baidu.disconf.web.web.config.controller;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.constraints.NotNull;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,9 @@ import com.baidu.dsp.common.constant.WebConstants;
 import com.baidu.dsp.common.controller.BaseController;
 import com.baidu.dsp.common.exception.FileUploadException;
 import com.baidu.dsp.common.vo.JsonObjectBase;
+
+import java.io.UnsupportedEncodingException;
+import java.util.Enumeration;
 
 /**
  * 专用于配置更新、删除
@@ -131,7 +136,11 @@ public class ConfigUpdateController extends BaseController {
      */
     @ResponseBody
     @RequestMapping(value = "/filetext/{configId}", method = RequestMethod.PUT)
-    public JsonObjectBase updateFileWithText(@PathVariable long configId, @NotNull String fileContent) {
+    public JsonObjectBase updateFileWithText(@PathVariable long configId, @NotNull String fileContent,
+                                             HttpServletRequest request) {
+
+        String encoding = request.getCharacterEncoding();
+        encoding = StringUtils.isEmpty(encoding) ? "UTF-8" : encoding;
 
         //
         // 更新
@@ -139,7 +148,7 @@ public class ConfigUpdateController extends BaseController {
         String emailNotification = "";
         try {
 
-            String str = new String(fileContent.getBytes(), "UTF-8");
+            String str = new String(fileContent.getBytes(encoding), "UTF-8");
             LOG.info("receive file: " + str);
 
             emailNotification = configMgr.updateItemValue(configId, str);
