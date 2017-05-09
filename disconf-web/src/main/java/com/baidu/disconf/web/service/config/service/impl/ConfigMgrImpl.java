@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import com.baidu.disconf.web.service.config.service.CodeService;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -36,7 +37,6 @@ import com.baidu.disconf.web.service.env.service.EnvMgr;
 import com.baidu.disconf.web.service.zookeeper.dto.ZkDisconfData;
 import com.baidu.disconf.web.service.zookeeper.dto.ZkDisconfData.ZkDisconfDataItem;
 import com.baidu.disconf.web.service.zookeeper.service.ZkDeployMgr;
-import com.baidu.disconf.web.utils.CodeUtils;
 import com.baidu.disconf.web.utils.DiffUtils;
 import com.baidu.disconf.web.utils.MyStringUtils;
 import com.baidu.dsp.common.constant.DataFormatConstants;
@@ -80,6 +80,9 @@ public class ConfigMgrImpl implements ConfigMgr {
 
     @Autowired
     private ConfigHistoryMgr configHistoryMgr;
+
+    @Autowired
+    private CodeService codeService;
 
     /**
      * 根据APPid获取其版本列表
@@ -263,11 +266,13 @@ public class ConfigMgrImpl implements ConfigMgr {
         Config config = getConfigById(configId);
         String oldValue = config.getValue();
 
+        String fileName = config.getName();
+
         //
         // 配置数据库的值 encode to db
         //
-        configDao.updateValue(configId, CodeUtils.utf8ToUnicode(value));
-        configHistoryMgr.createOne(configId, oldValue, CodeUtils.utf8ToUnicode(value));
+        configDao.updateValue(configId, codeService.decode(value,fileName));
+        configHistoryMgr.createOne(configId, oldValue, codeService.decode(value,fileName));
 
         //
         // 发送邮件通知
@@ -276,7 +281,7 @@ public class ConfigMgrImpl implements ConfigMgr {
 
         if (applicationPropertyConfig.isEmailMonitorOn()) {
             boolean isSendSuccess = logMailBean.sendHtmlEmail(toEmails,
-                    " config update", DiffUtils.getDiff(CodeUtils.unicodeToUtf8(oldValue),
+                    " config update", DiffUtils.getDiff(codeService.encode(value,fileName),
                             value,
                             config.toString(),
                             getConfigUrlHtml(config)));
@@ -333,7 +338,7 @@ public class ConfigMgrImpl implements ConfigMgr {
         config.setName(confNewForm.getKey());
         config.setType(disConfigTypeEnum.getType());
         config.setVersion(confNewForm.getVersion());
-        config.setValue(CodeUtils.utf8ToUnicode(confNewForm.getValue()));
+        config.setValue(codeService.decode(confNewForm.getValue(),confNewForm.getKey()));
         config.setStatus(Constants.STATUS_NORMAL);
 
         // 时间
@@ -479,7 +484,7 @@ public class ConfigMgrImpl implements ConfigMgr {
         confListVo.setModifyTime(config.getUpdateTime().substring(0, 12));
         confListVo.setKey(config.getName());
         // StringEscapeUtils.escapeHtml escape
-        confListVo.setValue(CodeUtils.unicodeToUtf8(config.getValue()));
+        confListVo.setValue(codeService.encode(config.getValue(),config.getName()));
         confListVo.setVersion(config.getVersion());
         confListVo.setType(DisConfigTypeEnum.getByType(config.getType()).getModelName());
         confListVo.setTypeId(config.getType());
